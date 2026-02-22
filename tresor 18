@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Master-Logik Tresor & Schatzkammer</title>
+<style>
+    :root { 
+        --bg-color: #4a5568; 
+        --gold: #f1c40f; 
+        --steel: #cbd5e0; 
+        --main-color: #3498db; 
+        --text-dark: #2d3748; 
+        --bronze: #cd7f32; 
+        --panel-bg: #718096; 
+    }
+    
+    * { box-sizing: border-box; transition: all 0.3s ease; }
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    
+    body { 
+        font-family: 'Segoe UI', sans-serif; 
+        background-color: var(--bg-color); 
+        color: white; 
+        display: flex; 
+        flex-direction: column; 
+        padding: 10px; 
+    }
+
+    .loot-storage { 
+        background: var(--panel-bg); 
+        width: 100%; padding: 8px 15px; 
+        border-radius: 12px; border: 2px solid var(--main-color); 
+        margin-bottom: 10px; display: flex; align-items: center; gap: 15px; 
+        flex-shrink: 0; 
+    }
+    .gem-bar { display: flex; gap: 5px; overflow-x: auto; font-size: 1.5rem; align-items: center; min-height: 40px; }
+
+    .game-layout { display: flex; flex-direction: row; gap: 15px; width: 100%; flex: 1; min-height: 0; }
+
+    .sidebar-left { width: 250px; background: var(--panel-bg); border: 3px solid var(--main-color); border-radius: 15px; padding: 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; overflow-y: auto; }
+    .shop-item { background: #edf2f7; padding: 8px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #cbd5e0; color: var(--text-dark); }
+
+    .main-center { flex: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .vault-container { position: relative; width: 100%; max-width: 400px; height: 100%; max-height: 500px; perspective: 1500px; }
+    .vault-interior { position: absolute; inset: 0; background: radial-gradient(circle, #fff, #ddd); border: 8px solid #95a5a6; border-radius: 30px; display: flex; align-items: center; justify-content: center; z-index: 1; }
+    #treasure { font-size: 6rem; display: none; }
+    
+    .vault-door-ui { 
+        position: absolute; inset: 0; 
+        background: linear-gradient(135deg, #718096, #4a5568); 
+        border: 8px solid #2d3748; 
+        border-radius: 30px; padding: 15px; z-index: 2; 
+        transform-origin: left; transition: transform 0.8s; 
+        display: flex; flex-direction: column; 
+    }
+    .vault-door-ui.open { transform: rotateY(-115deg); }
+
+    .sidebar-right { width: 280px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+    .panel { background: var(--panel-bg); padding: 12px; border-radius: 15px; border: 2px solid var(--steel); }
+    
+    .panel-locked { 
+        pointer-events: none; 
+        opacity: 0.6; 
+        filter: grayscale(0.7); 
+    }
+
+    .collection-shelf { background: #edf2f7; border: 2px solid var(--bronze); padding: 10px; display: flex; gap: 8px; justify-content: center; border-radius: 15px; flex-wrap: wrap; flex: 1; overflow-y: auto; }
+
+    .instruction-label { display: block; margin-bottom: 5px; font-weight: 800; color: #63b3ed; font-size: 0.8rem; text-transform: uppercase; text-align: center; }
+    .screen { background: #1a202c; color: var(--gold); font-size: 3rem; padding: 10px; border-radius: 12px; text-align: center; border: 3px inset rgba(0,0,0,0.5); }
+    .num-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: 1; margin-top: 10px; }
+    .num-btn { background: #edf2f7; color: var(--text-dark); font-size: 1.6rem; font-weight: bold; border-radius: 12px; border: none; box-shadow: 0 4px #cbd5e0; cursor: pointer; }
+    .op-row { display: flex; gap: 8px; margin: 10px 0; }
+    .op-btn { flex: 1; padding: 12px; font-size: 1.3rem; background: #48bb78; color: white; border: none; border-radius: 10px; cursor: pointer; }
+
+    .start-btn { 
+        border: none; border-radius: 10px; cursor: pointer; font-weight: bold; padding: 12px; 
+        color: white; margin-top: 5px; width: 100%; transition: all 0.4s ease;
+        background-color: var(--main-color);
+        box-shadow: 0 4px rgba(0,0,0,0.3);
+    }
+    .start-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.2); }
+    .start-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+    
+    .btn-level-1 { filter: brightness(1.2) saturate(1.1); } 
+    .btn-level-2 { filter: hue-rotate(25deg) brightness(1.1); } 
+    .btn-level-3 { filter: hue-rotate(50deg); }
+
+    .step-btn { background: #edf2f7; border: 1px solid var(--steel); padding: 8px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: bold; color: var(--text-dark); }
+    .step-btn.active { background: var(--main-color); color: white; }
+
+    .buy-btn { background: #a0aec0; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; }
+    .buy-btn:not(:disabled) { background: var(--main-color); box-shadow: 0 0 10px var(--main-color); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        70% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .reveal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; color: white; }
+    .revealed-artifact { font-size: 8rem; animation: revealItem 0.8s; }
+    @keyframes revealItem { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+</style>
+</head>
+<body>
+
+    <div id="revealOverlay" class="reveal-overlay">
+        <h2 style="color: var(--gold)">GEFUNDEN!</h2>
+        <div id="revealedItem" class="revealed-artifact"></div>
+        <p id="revealedName" style="margin-top: 20px; font-weight: bold;"></p>
+        <button onclick="closeReveal()" style="padding: 15px 30px; border-radius: 12px; border: none; cursor: pointer; background: var(--main-color); color: white; font-weight: bold;">In die Kiste</button>
+    </div>
+
+    <div class="loot-storage">
+        <button onclick="applyRandomTheme()" style="background:none; border:none; cursor:pointer; font-size:1.5rem;">🎨</button>
+        <div style="flex:1">
+            <span class="instruction-label" style="text-align:left;">Sammelbeutel</span>
+            <div class="gem-bar" id="gems">👝 Leer</div>
+        </div>
+    </div>
+
+    <div class="game-layout">
+        <div class="sidebar-left" id="shop"></div>
+        <div class="main-center">
+            <div class="vault-container">
+                <div class="vault-interior"><div id="treasure"></div></div>
+                <div class="vault-door-ui" id="door">
+                    <div class="screen" id="targetDisplay">??</div>
+                    <div class="calc-area" id="equation" style="color:#edf2f7; font-weight:bold; text-align:center; margin:10px 0; min-height:1.2rem;">Wähle ein Level!</div>
+                    <div id="opRow" class="op-row"></div>
+                    <div id="grid" class="num-grid"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="showSolution()" style="flex: 1; padding: 10px; background: var(--main-color); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; opacity: 0.9;">CODE ZEIGEN</button>
+                        <button onclick="resetCalc()" style="flex: 1; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">LÖSCHEN</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-right">
+            <div class="panel" id="settingsPanel">
+                <span class="instruction-label">Rechnungslänge</span>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button class="step-btn" onclick="setSteps(2, this)">L2</button>
+                    <button class="step-btn active" onclick="setSteps(3, this)">L3</button>
+                    <button class="step-btn" onclick="setSteps(4, this)">L4</button>
+                </div>
+                <span class="instruction-label">Lösungs-Modus</span>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="modeFree" class="step-btn active" onclick="setMode('free')">Gratis</button>
+                    <button id="modePro" class="step-btn" onclick="setMode('pro')">💎 Kostet 1</button>
+                </div>
+                <span class="instruction-label">Rechenarten</span>
+                <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; background: #edf2f7; padding: 8px; border-radius: 8px; color: #2d3748;">
+                    <label style="cursor:pointer"><input type="checkbox" id="c_add" checked> +</label>
+                    <label style="cursor:pointer"><input type="checkbox" id="c_sub" checked> -</label>
+                    <label style="cursor:pointer"><input type="checkbox" id="c_mul"> ×</label>
+                    <label style="cursor:pointer"><input type="checkbox" id="c_div"> ÷</label>
+                </div>
+                <button class="start-btn btn-level-1 lvl-btn" onclick="initGame(20, '🧿')">Bis 20</button>
+                <button class="start-btn btn-level-2 lvl-btn" onclick="initGame(100, '🔮')">Bis 100</button>
+                <button class="start-btn btn-level-3 lvl-btn" onclick="initGame(1000, '💎')">Bis 1000</button>
+            </div>
+            <span class="instruction-label">Deine Schätze</span>
+            <div class="collection-shelf" id="artifacts"></div>
+            <button onclick="confirmReset()" style="background:#e74c3c; color:white; border:none; padding:8px; border-radius:8px; width:100%; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:5px;">SPIELSTAND LÖSCHEN</button>
+        </div>
+    </div>
+
+    <script>
+        let targetValue = 0, currentTotal = 0, activeOp = null, historyText = "", currentGem = "";
+        let maxSteps = 3, solutionMode = 'free', currentSolutionPath = "", gameActive = false;
+        
+        let gemPool = JSON.parse(localStorage.getItem('gemPool')) || [];
+        let ownedArtifacts = JSON.parse(localStorage.getItem('ownedArtifacts')) || [];
+        let boughtItems = JSON.parse(localStorage.getItem('boughtItems')) || [];
+
+        const artifactsList = ["👑", "🗡️", "🏆", "🛡️", "🔱", "🐲", "🌟", "🦄", "🏰", "🌋", "📜", "🗝️", "⌛", "🏺", "💍", "🪙", "🧭", "🎭", "🏎️", "🚀"];
+        const shopItems = [
+            {id: 1, price: 3, icon: '🛍️', name: 'Stoffbeutel'},
+            {id: 2, price: 3, icon: '🧺', name: 'Weidenkorb'},
+            {id: 3, price: 5, icon: '📦', name: 'Pappkarton'},
+            {id: 4, price: 5, icon: '🎒', name: 'Rucksack'},
+            {id: 5, price: 8, icon: '💼', name: 'Lederkoffer'},
+            {id: 6, price: 8, icon: '👜', name: 'Handtasche'},
+            {id: 7, price: 10, icon: '🎁', name: 'Geschenk'},
+            {id: 8, price: 12, icon: '🗄️', name: 'Stahlschrank'},
+            {id: 9, price: 15, icon: '💰', name: 'Geldsack'},
+            {id: 10, price: 20, icon: '🧰', name: 'Werkzeugkiste'}
+        ];
+
+        function setSteps(val, btn) {
+            if (gameActive && solutionMode === 'pro') return;
+            maxSteps = val;
+            document.querySelectorAll('.step-btn').forEach(b => { if(!b.id.startsWith('mode')) b.classList.remove('active')});
+            btn.classList.add('active');
+        }
+
+        function setMode(mode) {
+            solutionMode = mode;
+            document.getElementById('modeFree').classList.toggle('active', mode === 'free');
+            document.getElementById('modePro').classList.toggle('active', mode === 'pro');
+            updateStartButtons();
+        }
+
+        function updateStartButtons() {
+            const btns = document.querySelectorAll('.lvl-btn');
+            btns.forEach(b => {
+                if (gameActive && solutionMode === 'pro') {
+                    b.disabled = true;
+                    if (!b.innerText.includes('🔒')) b.innerText = "🔒 " + b.innerText;
+                } else {
+                    b.disabled = false;
+                    b.innerText = b.innerText.replace('🔒 ', '');
+                }
+            });
+        }
+
+        function createLogicPath(max, steps, ops) {
+            let val = Math.floor(Math.random() * (max / 2)) + 2;
+            let nums = [val];
+            let pathStr = val.toString();
+
+            for (let i = 1; i < steps; i++) {
+                let op = ops[Math.floor(Math.random() * ops.length)];
+                let next;
+                let validStep = false;
+                let attempts = 0;
+
+                while (!validStep && attempts < 30) {
+                    attempts++;
+                    if (op === '+') {
+                        next = Math.floor(Math.random() * (max - val)) + 1;
+                        if (val + next <= max && next > 0) {
+                            val += next; pathStr += ` + ${next}`; validStep = true;
+                        }
+                    } else if (op === '-') {
+                        next = Math.floor(Math.random() * (val - 1)) + 1;
+                        if (val - next >= 1) {
+                            val -= next; pathStr += ` - ${next}`; validStep = true;
+                        }
+                    } else if (op === '*') {
+                        let maxNext = Math.floor(max / val);
+                        if (maxNext >= 2) {
+                            next = Math.floor(Math.random() * (Math.min(maxNext, 12) - 1)) + 2;
+                            val *= next; pathStr += ` × ${next}`; validStep = true;
+                        } else { op = '+'; }
+                    } else if (op === '/') {
+                        let divisors = [];
+                        for (let d = 2; d <= val; d++) { if (val % d === 0) divisors.push(d); }
+                        if (divisors.length > 0) {
+                            next = divisors[Math.floor(Math.random() * divisors.length)];
+                            val /= next; pathStr += ` ÷ ${next}`; validStep = true;
+                        } else { op = '+'; }
+                    }
+                }
+                if (validStep) nums.push(next);
+            }
+            currentSolutionPath = pathStr + " = " + Math.round(val);
+            return { result: Math.round(val), numbers: nums };
+        }
+
+        function initGame(max, gem) {
+            if (gameActive && solutionMode === 'pro') return;
+            currentGem = gem;
+            gameActive = true;
+            if (solutionMode === 'pro') document.getElementById('settingsPanel').classList.add('panel-locked');
+            updateStartButtons();
+            document.getElementById('door').classList.remove('open');
+            document.getElementById('treasure').style.display = 'none';
+            resetCalc();
+            
+            const allowedOps = [];
+            if(document.getElementById('c_add').checked) allowedOps.push('+');
+            if(document.getElementById('c_sub').checked) allowedOps.push('-');
+            if(document.getElementById('c_mul').checked) allowedOps.push('*');
+            if(document.getElementById('c_div').checked) allowedOps.push('/');
+            if(allowedOps.length === 0) {
+                gameActive = false; document.getElementById('settingsPanel').classList.remove('panel-locked');
+                updateStartButtons(); return alert("Wähle eine Rechenart!");
+            }
+            
+            let path = createLogicPath(max, maxSteps, allowedOps);
+            targetValue = path.result;
+            document.getElementById('targetDisplay').innerText = targetValue;
+            
+            let pool = [];
+            path.numbers.forEach(n => { if (!pool.includes(n)) pool.push(n); });
+
+            let safety = 0;
+            while(pool.length < 6 && safety < 500) {
+                let r = Math.floor(Math.random() * max) + 1;
+                if(!pool.includes(r) && r !== targetValue) pool.push(r);
+                safety++;
+            }
+            renderUI(pool.sort(() => Math.random() - 0.5), allowedOps);
+        }
+
+        function showSolution() {
+            const eqDisplay = document.getElementById('equation');
+            if (!gameActive) return;
+            if (solutionMode === 'pro') {
+                if (gemPool.length > 0) {
+                    gemPool.pop(); saveData(); updateWalletUI(); renderShop();
+                    document.getElementById('settingsPanel').classList.remove('panel-locked');
+                } else {
+                    const oldText = eqDisplay.innerText;
+                    eqDisplay.innerText = "Zu wenig Edelsteine! 💎"; eqDisplay.style.color = "#e74c3c";
+                    setTimeout(() => { eqDisplay.innerText = oldText; eqDisplay.style.color = "#edf2f7"; }, 2000);
+                    return;
+                }
+            }
+            const oldT = eqDisplay.innerText;
+            eqDisplay.innerText = "Lösung: " + currentSolutionPath;
+            eqDisplay.style.color = "var(--gold)";
+            setTimeout(() => { eqDisplay.innerText = historyText || "Knack den Code!"; eqDisplay.style.color = "#edf2f7"; }, 4000);
+        }
+
+        function renderUI(pool, ops) {
+            const g = document.getElementById('grid'); g.innerHTML = '';
+            pool.forEach(n => {
+                const b = document.createElement('button');
+                b.className = 'num-btn'; b.innerText = n;
+                b.onclick = () => {
+                    if(currentTotal === 0) { currentTotal = n; historyText = n.toString(); }
+                    else if(activeOp) {
+                        if(activeOp === '+') currentTotal += n;
+                        if(activeOp === '-') currentTotal -= n;
+                        if(activeOp === '*') currentTotal *= n;
+                        if(activeOp === '/') currentTotal /= n;
+                        historyText += ` ${activeOp.replace('*','×').replace('/','÷')} ${n}`;
+                        activeOp = null;
+                    }
+                    updateDisplay();
+                };
+                g.appendChild(b);
+            });
+            const or = document.getElementById('opRow'); or.innerHTML = '';
+            ops.forEach(op => {
+                const b = document.createElement('button');
+                b.className = 'op-btn'; b.innerText = op.replace('*','×').replace('/','÷');
+                b.onclick = () => { if(currentTotal !== 0) activeOp = op; updateDisplay(); };
+                or.appendChild(b);
+            });
+        }
+
+        function updateDisplay() {
+            document.getElementById('equation').innerText = historyText + (activeOp ? ` ${activeOp.replace('*','×').replace('/','÷')}` : "");
+            if(Math.abs(currentTotal - targetValue) < 0.001 && historyText.includes(' ')) {
+                gameActive = false; 
+                document.getElementById('settingsPanel').classList.remove('panel-locked');
+                updateStartButtons();
+                document.getElementById('door').classList.add('open');
+                const t = document.getElementById('treasure');
+                t.innerText = currentGem; t.style.display = 'block';
+                setTimeout(flyGem, 800);
+            }
+        }
+
+        function flyGem() {
+            gemPool.push(currentGem);
+            saveData(); updateWalletUI(); renderShop();
+            document.getElementById('treasure').style.display = 'none';
+        }
+
+        function resetCalc() { currentTotal = 0; activeOp = null; historyText = ""; updateDisplay(); }
+
+        function renderShop() {
+            const shop = document.getElementById('shop'); shop.innerHTML = '<span class="instruction-label">Shop</span>';
+            shopItems.forEach(item => {
+                const isBought = boughtItems.includes(item.id);
+                const canAfford = gemPool.length >= item.price;
+                const div = document.createElement('div');
+                div.className = `shop-item ${isBought ? 'bought' : ''}`;
+                div.innerHTML = `<span> ${item.icon} ${item.price}    🧿🔮💎</span>
+                <button class="buy-btn" ${(!canAfford || isBought) ? 'disabled' : ''} onclick="buyItem(${item.id})">${isBought ? '✓' : 'Kauf'}</button>`;
+                shop.appendChild(div);
+            });
+        }
+
+        function buyItem(id) {
+            const item = shopItems.find(i => i.id === id);
+            gemPool.splice(-item.price); boughtItems.push(id);
+            saveData(); updateWalletUI(); renderShop();
+            const art = artifactsList[Math.floor(Math.random() * artifactsList.length)];
+            document.getElementById('revealedItem').innerText = art;
+            document.getElementById('revealedName').innerText = item.name;
+            document.getElementById('revealOverlay').style.display = 'flex';
+            window.lastArt = art;
+        }
+
+        function closeReveal() { 
+            if(window.lastArt) ownedArtifacts.push(window.lastArt); 
+            saveData(); document.getElementById('revealOverlay').style.display = 'none'; renderArtifacts(); 
+        }
+
+        function renderArtifacts() { document.getElementById('artifacts').innerHTML = ownedArtifacts.map(a => `<span style="font-size:2rem">${a}</span>`).join(''); }
+        function updateWalletUI() { document.getElementById('gems').innerText = gemPool.length ? gemPool.join(' ') : '👝 Leer'; }
+        function saveData() { localStorage.setItem('gemPool', JSON.stringify(gemPool)); localStorage.setItem('ownedArtifacts', JSON.stringify(ownedArtifacts)); localStorage.setItem('boughtItems', JSON.stringify(boughtItems)); }
+        
+        function applyRandomTheme() { 
+            const colors = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6', '#f1c40f', '#e74c3c', '#1abc9c']; 
+            const newColor = colors[Math.floor(Math.random() * colors.length)];
+            document.documentElement.style.setProperty('--main-color', newColor); 
+        }
+
+        function confirmReset() { if(confirm("Spielstand wirklich löschen?")) { localStorage.clear(); location.reload(); } }
+
+        renderShop(); renderArtifacts(); updateWalletUI();
+    </script>
+</body>
+</html>
