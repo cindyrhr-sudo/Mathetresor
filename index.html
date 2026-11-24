@@ -2,190 +2,451 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Master-Logik Tresor & Schatzkammer</title>
 
     <!-- Safari / iOS: als Web-App zum Homescreen hinzufügen, läuft dann offline im Standalone-Modus -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tresor Logik">
-    <meta name="theme-color" content="#3498db">
+    <meta name="theme-color" content="#2a313c">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
     <link rel="icon" href="icon-192.png">
 
 <style>
-    :root { 
-        --bg-color: #4a5568; 
-        --gold: #f1c40f; 
-        --steel: #cbd5e0; 
-        --main-color: #3498db; 
-        --text-dark: #2d3748; 
-        --bronze: #cd7f32; 
-        --panel-bg: #718096; 
-    }
-    
-    * { box-sizing: border-box; transition: all 0.3s ease; }
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
-    
-    body { 
-        font-family: 'Segoe UI', sans-serif; 
-        background-color: var(--bg-color); 
-        color: white; 
-        display: flex; 
-        flex-direction: column; 
-        padding: 10px; 
+    :root {
+        --gold: #f1c40f;
+        --steel: #cbd5e0;
+        --main-color: #2b7bbf;
+        --text-dark: #2d3748;
+        --bronze: #cd7f32;
+        --panel-bg: #3b4454;
+        --panel-line: #4f5b6e;
+        --label: #a7c7e7;
+        --ok-green: #68d391;
     }
 
-    .loot-storage { 
-        background: var(--panel-bg); 
-        width: 100%; padding: 8px 15px; 
-        border-radius: 12px; border: 2px solid var(--main-color); 
-        margin-bottom: 10px; display: flex; align-items: center; gap: 15px; 
-        flex-shrink: 0; 
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; overscroll-behavior: none; }
+
+    body {
+        font-family: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        background: radial-gradient(120% 120% at 30% 0%, #3a4352, #232932);
+        color: white;
+        -webkit-user-select: none; user-select: none;
+        -webkit-touch-callout: none;
     }
-    .gem-bar { display: flex; gap: 5px; overflow-x: auto; font-size: 1.5rem; align-items: center; min-height: 40px; }
 
-    .game-layout { display: flex; flex-direction: row; gap: 15px; width: 100%; flex: 1; min-height: 0; }
+    button { font-family: inherit; cursor: pointer; touch-action: manipulation; -webkit-appearance: none; appearance: none; }
+    button:active:not(:disabled) { transform: translateY(2px); }
+    button:focus-visible, .op-toggle input:focus-visible + .circle { outline: 3px solid #ffffff; outline-offset: 2px; }
 
-    .sidebar-left { width: 250px; background: var(--panel-bg); border: 3px solid var(--main-color); border-radius: 15px; padding: 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; overflow-y: auto; }
-    .shop-item { background: #edf2f7; padding: 8px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #cbd5e0; color: var(--text-dark); }
+    /* ---------- Bühne: feste Designgröße, wird automatisch auf den Bildschirm skaliert ---------- */
+    #fitbox {
+        position: fixed;
+        top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
+        bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+        overflow: hidden;
+    }
+    #stage {
+        position: absolute; left: 0; top: 0;
+        width: 1240px; height: 860px;
+        transform-origin: 0 0;
+        padding: 20px;
+        display: flex; flex-direction: column; gap: 24px;
+    }
 
-    .main-center { flex: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    .vault-container { position: relative; width: 100%; max-width: 400px; height: 100%; max-height: 500px; perspective: 1500px; }
-    .vault-interior { position: absolute; inset: 0; background: radial-gradient(circle, #fff, #ddd); border: 8px solid #95a5a6; border-radius: 30px; display: flex; align-items: center; justify-content: center; z-index: 1; }
-    #treasure { font-size: 6rem; display: none; }
-    
-    .vault-door-ui { 
-        position: absolute; inset: 0; 
-        background: linear-gradient(135deg, #718096, #4a5568); 
-        border: 8px solid #2d3748; 
-        border-radius: 30px; padding: 15px; z-index: 2; 
-        transform-origin: left; transition: transform 0.8s; 
-        display: flex; flex-direction: column; 
+    /* ---------- Beutel-Leiste ---------- */
+    .topbar {
+        height: 76px; flex: none;
+        display: flex; align-items: center; gap: 18px;
+        padding: 0 16px;
+        background: var(--panel-bg);
+        border: 2px solid var(--main-color); border-radius: 18px;
+    }
+    .round-btn { width: 52px; height: 52px; flex: none; border-radius: 50%; border: none; background: var(--panel-line); display: flex; align-items: center; justify-content: center; padding: 0; }
+    .bag-label { display: flex; align-items: center; gap: 8px; color: #d8dee9; font-weight: 800; font-size: 16px; flex: none; }
+    .gem-bar {
+        flex: 1; min-width: 0; height: 52px;
+        display: flex; align-items: center; gap: 8px; padding: 0 14px;
+        background: #252b36; border-radius: 14px;
+        font-size: 30px; line-height: 1;
+        overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+    }
+    .gem-bar::-webkit-scrollbar { display: none; }
+    .gem-bar span { flex: none; }
+    .gem-bar .empty { font-size: 20px; color: #8d99a8; font-weight: 800; }
+    .reset-btn {
+        flex: none; height: 48px; padding: 0 16px; border-radius: 12px;
+        border: 2px solid #8a4a45; background: transparent; color: #f0b4ae;
+        font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;
+    }
+
+    .layout { flex: 1; min-height: 0; display: flex; gap: 28px; }
+
+    .label { display: block; text-align: center; font-weight: 900; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--label); }
+
+    /* ---------- Shop ---------- */
+    .shop {
+        width: 260px; flex: none;
+        background: var(--panel-bg);
+        border: 3px solid var(--main-color); border-radius: 18px;
+        padding: 14px; display: flex; flex-direction: column; gap: 6px; overflow: hidden;
+    }
+    .panel-title { display: flex; align-items: center; justify-content: center; gap: 8px; height: 30px; flex: none; font-weight: 900; font-size: 16px; color: #d8dee9; }
+    .shop-item {
+        height: 58px; flex: none;
+        display: flex; align-items: center; gap: 8px; padding: 0 8px;
+        border-radius: 12px; border: 3px solid transparent; color: #1f2937;
+    }
+    .shop-item.bought { background: #fdf3c4; border-color: var(--gold); }
+    .shop-item.can { background: #ffffff; border-color: var(--main-color); }
+    .shop-item.locked { background: #e2e8f0; }
+    .si-icon { font-size: 30px; line-height: 1; width: 36px; text-align: center; flex: none; }
+    .si-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .si-name { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .si-price { display: flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 900; }
+    .si-done { width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; }
+    .si-lock { width: 44px; height: 44px; flex: none; border-radius: 12px; background: #cbd5e0; display: flex; align-items: center; justify-content: center; }
+    .buy-btn {
+        width: 64px; height: 44px; flex: none; border: none; border-radius: 12px;
+        background: var(--main-color); color: white; font-weight: 900; font-size: 14px;
+        display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0;
+        box-shadow: 0 3px rgba(0,0,0,0.35);
+    }
+
+    /* ---------- Tresor ---------- */
+    .main-center { flex: 1; min-width: 0; display: flex; justify-content: center; }
+    .vault-container { position: relative; width: 100%; max-width: 520px; height: 100%; perspective: 1500px; }
+    .vault-interior {
+        position: absolute; inset: 0;
+        background: radial-gradient(circle, #ffffff, #d9dee5);
+        border: 10px solid #95a5a6; border-radius: 34px;
+        display: flex; align-items: center; justify-content: center; z-index: 1;
+    }
+    #treasure { font-size: 110px; line-height: 1; display: none; }
+    #treasure.pop { animation: popIn 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) 0.55s both; }
+    @keyframes popIn { 0% { transform: scale(0.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+    .vault-door-ui {
+        position: absolute; inset: 0; z-index: 2;
+        transform-origin: left; transition: transform 0.8s;
+        -webkit-transform-style: preserve-3d; transform-style: preserve-3d;
     }
     .vault-door-ui.open { transform: rotateY(-115deg); }
-
-    .sidebar-right { width: 280px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-    .panel { background: var(--panel-bg); padding: 12px; border-radius: 15px; border: 2px solid var(--steel); }
-    
-    .panel-locked { 
-        pointer-events: none; 
-        opacity: 0.6; 
-        filter: grayscale(0.7); 
+    .door-face {
+        position: absolute; inset: 0;
+        border: 10px solid #262d38; border-radius: 34px;
+        -webkit-backface-visibility: hidden; backface-visibility: hidden;
     }
-
-    .collection-shelf { background: #edf2f7; border: 2px solid var(--bronze); padding: 10px; display: flex; gap: 8px; justify-content: center; border-radius: 15px; flex-wrap: wrap; flex: 1; overflow-y: auto; }
-
-    .instruction-label { display: block; margin-bottom: 5px; font-weight: 800; color: #63b3ed; font-size: 0.8rem; text-transform: uppercase; text-align: center; }
-    .screen { background: #1a202c; color: var(--gold); font-size: 3rem; padding: 10px; border-radius: 12px; text-align: center; border: 3px inset rgba(0,0,0,0.5); }
-    .num-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: 1; margin-top: 10px; }
-    .num-btn { background: #edf2f7; color: var(--text-dark); font-size: 1.6rem; font-weight: bold; border-radius: 12px; border: none; box-shadow: 0 4px #cbd5e0; cursor: pointer; }
-    .op-row { display: flex; gap: 8px; margin: 10px 0; }
-    .op-btn { flex: 1; padding: 12px; font-size: 1.3rem; background: #48bb78; color: white; border: none; border-radius: 10px; cursor: pointer; }
-
-    .start-btn { 
-        border: none; border-radius: 10px; cursor: pointer; font-weight: bold; padding: 12px; 
-        color: white; margin-top: 5px; width: 100%; transition: all 0.4s ease;
-        background-color: var(--main-color);
-        box-shadow: 0 4px rgba(0,0,0,0.3);
+    .door-front {
+        background: linear-gradient(145deg, #8e9aae, #4a5465 55%, #5b6679);
+        box-shadow: inset 0 0 0 3px rgba(255,255,255,0.18), inset 0 -10px 24px rgba(0,0,0,0.25), 0 10px 26px rgba(0,0,0,0.4);
+        padding: 30px 26px 24px;
+        display: flex; flex-direction: column; gap: 16px;
     }
-    .start-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.2); }
-    .start-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
-    
-    .btn-level-1 { filter: brightness(1.2) saturate(1.1); } 
-    .btn-level-2 { filter: hue-rotate(25deg) brightness(1.1); } 
-    .btn-level-3 { filter: hue-rotate(50deg); }
-
-    .step-btn { background: #edf2f7; border: 1px solid var(--steel); padding: 8px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: bold; color: var(--text-dark); }
-    .step-btn.active { background: var(--main-color); color: white; }
-
-    .buy-btn { background: #a0aec0; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; }
-    .buy-btn:not(:disabled) { background: var(--main-color); box-shadow: 0 0 10px var(--main-color); animation: pulse 1.5s infinite; }
-
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        70% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+    /* Innenseite der Tür: einfarbig, nichts scheint durch */
+    .door-back {
+        background: #4f596a;
+        box-shadow: inset 0 0 0 3px rgba(255,255,255,0.12);
+        -webkit-transform: rotateY(180deg); transform: rotateY(180deg);
     }
+    .hinge { position: absolute; left: -26px; width: 16px; height: 64px; border-radius: 6px; background: linear-gradient(90deg, #1b2029, #3a4350); }
+    .rivet { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e8edf3, #6b7587); }
 
+    .screen-row { height: 116px; flex: none; display: flex; align-items: center; gap: 12px; }
+    .screen {
+        flex: 1; min-width: 0; height: 116px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 0 10px; overflow: hidden;
+        background: #141a24; border-radius: 18px; border: 3px solid #0b0f16;
+        box-shadow: inset 0 4px 12px rgba(0,0,0,0.6);
+    }
+    .target-group { display: flex; align-items: center; gap: 14px; color: var(--gold); white-space: nowrap; }
+    .target-group svg { width: 50px; height: 50px; transition: width 0.35s ease, height 0.35s ease; }
+    #targetDisplay { font-size: 80px; font-weight: 900; line-height: 1; transition: font-size 0.35s ease; }
+    .sum-group {
+        display: flex; align-items: center; gap: 6px; color: var(--ok-green);
+        font-size: 46px; font-weight: 900; line-height: 1; white-space: nowrap; overflow: hidden;
+        max-width: 0; opacity: 0; margin-left: 0;
+        transition: max-width 0.35s ease, opacity 0.25s ease, margin-left 0.35s ease;
+    }
+    .screen.peek .sum-group { max-width: 240px; opacity: 1; margin-left: 20px; }
+    .screen.peek #targetDisplay { font-size: 46px; }
+    .screen.peek .target-group svg { width: 30px; height: 30px; }
+
+    .eye-btn {
+        width: 64px; height: 64px; flex: none; border-radius: 50%; padding: 0;
+        border: 3px solid #ffffff; background: #3b4a5f;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px rgba(0,0,0,0.35);
+    }
+    .eye-btn.held { background: var(--main-color); transform: translateY(2px); }
+
+    .chain-row { height: 64px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .chain { display: flex; align-items: center; gap: 8px; white-space: nowrap; transform-origin: center; }
+    .tile { min-width: 56px; height: 56px; padding: 0 10px; border-radius: 12px; background: #edf2f7; color: var(--text-dark); font-size: 30px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+    .tile-op { min-width: 30px; text-align: center; font-size: 34px; font-weight: 900; color: #9ae6b4; }
+    .tile-slot { width: 56px; height: 56px; border: 3px dashed #cbd5e0; border-radius: 12px; }
+    .chain.solution .tile { background: #fdf3c4; color: #3a2f00; }
+    .chain.solution .tile-op { color: var(--gold); }
+    .idle-hint { font-size: 44px; line-height: 1; }
+    .pill-bad { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 20px; border-radius: 26px; background: #7a2a22; border: 3px solid #f0b4ae; font-size: 24px; font-weight: 900; color: #ffffff; }
+
+    .op-row { height: 60px; flex: none; display: flex; gap: 10px; }
+    .op-btn {
+        flex: 1; border: 4px solid transparent; border-radius: 14px;
+        background: #2f855a; color: #ffffff; font-size: 34px; font-weight: 900;
+        box-shadow: 0 4px #1e5a3b; padding: 0;
+    }
+    .op-btn.active { background: #9ae6b4; color: #12301f; border-color: #ffffff; }
+    .op-btn.idle { opacity: 0.35; }
+
+    .num-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .num-btn { border: none; border-radius: 16px; background: #edf2f7; color: var(--text-dark); font-size: 46px; font-weight: 900; box-shadow: 0 5px #a9b6c6; padding: 0; }
+    .num-btn.idle { opacity: 0.3; }
+
+    .door-actions { height: 60px; flex: none; display: flex; gap: 12px; }
+    .sol-btn {
+        flex: 1; border: none; border-radius: 14px; background: var(--main-color); color: #ffffff;
+        font-size: 18px; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 10px;
+        box-shadow: 0 4px rgba(0,0,0,0.35); padding: 0;
+    }
+    .sol-btn .cost { display: none; align-items: center; gap: 4px; font-size: 16px; }
+    .clear-btn { width: 84px; border: none; border-radius: 14px; background: #c0392b; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px #84251b; padding: 0; }
+
+    /* ---------- Rechte Spalte ---------- */
+    .sidebar-right { width: 340px; flex: none; display: flex; flex-direction: column; gap: 28px; }
+    .panel { background: var(--panel-bg); padding: 18px 16px; border-radius: 18px; border: 3px solid var(--main-color); display: flex; flex-direction: column; gap: 22px; }
+    .panel-locked { pointer-events: none; opacity: 0.6; filter: grayscale(0.7); }
+    .group { display: flex; flex-direction: column; gap: 8px; }
+    .row { display: flex; gap: 8px; }
+
+    .choice {
+        flex: 1; height: 52px; border: 2px solid #9fb0c4; border-radius: 12px;
+        background: #edf2f7; color: var(--text-dark); font-weight: 900; font-size: 15px;
+        display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0;
+    }
+    .choice.active { background: var(--main-color); border-color: #ffffff; color: #ffffff; }
+    .choice svg { stroke: currentColor; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--text-dark); flex: none; }
+    .choice.active .dot { background: #ffffff; }
+
+    .op-toggle { position: relative; width: 62px; height: 62px; display: block; cursor: pointer; }
+    .op-toggle input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .op-toggle .circle {
+        width: 100%; height: 100%; border-radius: 50%;
+        border: 3px solid #6b778a; background: #2f3744; color: #a0aec0;
+        display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900;
+    }
+    .op-toggle input:checked + .circle { background: #2f855a; border-color: #ffffff; color: #ffffff; }
+    .op-toggle .badge {
+        display: none; position: absolute; right: -6px; top: -6px; width: 24px; height: 24px; border-radius: 50%;
+        background: var(--gold); align-items: center; justify-content: center; pointer-events: none;
+    }
+    .op-toggle input:checked ~ .badge { display: flex; }
+
+    .lvl-btn {
+        position: relative; flex: 1; height: 88px; border: none; border-radius: 14px; padding: 0;
+        color: #1f2937; font-weight: 900;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    }
+    .lvl-1 { background: #cfe6fb; box-shadow: 0 4px #7fa8cf; }
+    .lvl-2 { background: #e3d9fb; box-shadow: 0 4px #a595d4; }
+    .lvl-3 { background: #c7f0f2; box-shadow: 0 4px #6fb9bd; }
+    .lvl-gem { font-size: 34px; line-height: 1; }
+    .lvl-num { font-size: 15px; }
+    .lvl-btn .lock { display: none; position: absolute; right: 6px; top: 6px; width: 26px; height: 26px; border-radius: 50%; background: #2d3748; align-items: center; justify-content: center; }
+    .lvl-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .lvl-btn:disabled .lock { display: flex; }
+
+    .collection {
+        flex: 1; min-height: 0;
+        background: #edf2f7; border: 3px solid var(--bronze); border-radius: 18px; padding: 14px 12px;
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    .collection .label { color: #5a4320; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .shelf { flex: 1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-content: center; }
+    .slot { aspect-ratio: 1 / 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #dfe5ec; border: 2px dashed #b4bfcc; }
+    .slot.found { background: #ffffff; border: 2px solid var(--bronze); }
+    .slot span { font-size: 30px; line-height: 1; }
+    .slot .q { font-size: 30px; font-weight: 900; color: #8d99a8; }
+
+    /* ---------- Fund-Overlay, Effekte ---------- */
     .reveal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; color: white; }
-    .revealed-artifact { font-size: 8rem; animation: revealItem 0.8s; }
+    .reveal-overlay h2 { color: var(--gold); font-size: 34px; margin: 0 0 10px; }
+    .revealed-artifact { font-size: 8rem; line-height: 1.1; animation: revealItem 0.8s; }
     @keyframes revealItem { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .reveal-btn { margin-top: 28px; padding: 16px 32px; border-radius: 14px; border: none; background: var(--main-color); color: white; font-weight: 900; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+    #fxLayer { position: fixed; inset: 0; pointer-events: none; z-index: 300; overflow: hidden; }
+    .spark { position: absolute; width: 1em; height: 1em; margin: -0.5em 0 0 -0.5em; line-height: 1; text-align: center; pointer-events: none; }
+    .flying { position: fixed; display: flex; align-items: center; justify-content: center; line-height: 1; pointer-events: none; z-index: 310; }
 </style>
 </head>
 <body>
 
-    <div id="revealOverlay" class="reveal-overlay">
-        <h2 style="color: var(--gold)">GEFUNDEN!</h2>
-        <div id="revealedItem" class="revealed-artifact"></div>
-        <p id="revealedName" style="margin-top: 20px; font-weight: bold;"></p>
-        <button onclick="closeReveal()" style="padding: 15px 30px; border-radius: 12px; border: none; cursor: pointer; background: var(--main-color); color: white; font-weight: bold;">In die Kiste</button>
-    </div>
+    <div id="fitbox">
+      <div id="stage">
 
-    <div class="loot-storage">
-        <button onclick="applyRandomTheme()" style="background:none; border:none; cursor:pointer; font-size:1.5rem;">🎨</button>
-        <div style="flex:1">
-            <span class="instruction-label" style="text-align:left;">Sammelbeutel</span>
-            <div class="gem-bar" id="gems">👝 Leer</div>
+        <div class="topbar">
+            <button class="round-btn" onclick="applyRandomTheme()" aria-label="Farbe wechseln">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2-.5-1 0-2.5 1.5-2.5H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/><circle cx="8" cy="11" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="11" r="1"/></svg>
+            </button>
+            <div class="bag-label">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f1c40f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l1 12H5L6 8zM9 8V6a3 3 0 0 1 6 0v2"/></svg>
+                Beutel
+            </div>
+            <div class="gem-bar" id="gems"></div>
+            <button class="reset-btn" onclick="confirmReset()" aria-label="Spielstand löschen">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0b4ae" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                Spielstand
+            </button>
         </div>
-    </div>
 
-    <div class="game-layout">
-        <div class="sidebar-left" id="shop"></div>
-        <div class="main-center">
-            <div class="vault-container">
-                <div class="vault-interior"><div id="treasure"></div></div>
-                <div class="vault-door-ui" id="door">
-                    <div class="screen" id="targetDisplay">??</div>
-                    <div class="calc-area" id="equation" style="color:#edf2f7; font-weight:bold; text-align:center; margin:10px 0; min-height:1.2rem;">Wähle ein Level!</div>
-                    <div id="opRow" class="op-row"></div>
-                    <div id="grid" class="num-grid"></div>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button onclick="showSolution()" style="flex: 1; padding: 10px; background: var(--main-color); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; opacity: 0.9;">CODE ZEIGEN</button>
-                        <button onclick="resetCalc()" style="flex: 1; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">LÖSCHEN</button>
+        <div class="layout">
+            <div class="shop" id="shop"></div>
+
+            <div class="main-center">
+                <div class="vault-container">
+                    <div class="vault-interior"><div id="treasure"></div></div>
+                    <div class="vault-door-ui" id="door">
+                      <div class="door-face door-front">
+                        <div class="hinge" style="top:110px"></div>
+                        <div class="hinge" style="bottom:110px"></div>
+                        <div class="rivet" style="left:12px; top:12px"></div>
+                        <div class="rivet" style="right:12px; top:12px"></div>
+                        <div class="rivet" style="left:12px; bottom:12px"></div>
+                        <div class="rivet" style="right:12px; bottom:12px"></div>
+
+                        <div class="screen-row">
+                            <div class="screen" id="screen">
+                                <div class="target-group">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#f1c40f" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#f1c40f"/></svg>
+                                    <span id="targetDisplay">??</span>
+                                </div>
+                                <div class="sum-group" id="sumGroup"><span>=</span><span id="sumDisplay">?</span></div>
+                            </div>
+                            <button class="eye-btn" id="eyeBtn" aria-label="Zwischenstand ansehen (gedrückt halten)">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="chain-row"><div class="chain" id="chain"></div></div>
+
+                        <div id="opRow" class="op-row"></div>
+                        <div id="grid" class="num-grid"></div>
+
+                        <div class="door-actions">
+                            <button class="sol-btn" onclick="showSolution()">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+                                Lösung
+                                <span class="cost" id="costBadge">💎 −1</span>
+                            </button>
+                            <button class="clear-btn" onclick="resetCalc()" aria-label="Löschen">
+                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>
+                            </button>
+                        </div>
+                      </div>
+                      <div class="door-face door-back"></div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="sidebar-right">
-            <div class="panel" id="settingsPanel">
-                <span class="instruction-label">Rechnungslänge</span>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button class="step-btn" onclick="setSteps(2, this)">L2</button>
-                    <button class="step-btn active" onclick="setSteps(3, this)">L3</button>
-                    <button class="step-btn" onclick="setSteps(4, this)">L4</button>
+
+            <div class="sidebar-right">
+                <div class="panel" id="settingsPanel">
+                    <div class="group">
+                        <span class="label">Schritte</span>
+                        <div class="row">
+                            <button class="choice step-btn" onclick="setSteps(2, this)" aria-label="2 Schritte">
+                                <span class="dot"></span><span class="dot"></span>
+                            </button>
+                            <button class="choice step-btn active" onclick="setSteps(3, this)" aria-label="3 Schritte">
+                                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                            </button>
+                            <button class="choice step-btn" onclick="setSteps(4, this)" aria-label="4 Schritte">
+                                <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <span class="label">Lösung</span>
+                        <div class="row">
+                            <button id="modeFree" class="choice mode-btn active" onclick="setMode('free')">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+                                Gratis
+                            </button>
+                            <button id="modePro" class="choice mode-btn" onclick="setMode('pro')">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+                                <span style="font-size:20px; line-height:1">💎</span> −1
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <span class="label">Rechenarten</span>
+                        <div class="row" style="justify-content: space-between; padding: 0 4px;">
+                            <label class="op-toggle"><input type="checkbox" id="c_add" checked aria-label="Plus"><span class="circle">+</span><span class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a2f00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></label>
+                            <label class="op-toggle"><input type="checkbox" id="c_sub" checked aria-label="Minus"><span class="circle">−</span><span class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a2f00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></label>
+                            <label class="op-toggle"><input type="checkbox" id="c_mul" aria-label="Mal"><span class="circle">×</span><span class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a2f00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></label>
+                            <label class="op-toggle"><input type="checkbox" id="c_div" aria-label="Geteilt"><span class="circle">÷</span><span class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a2f00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <button class="lvl-btn lvl-1" onclick="initGame(20, '🧿')" aria-label="Bis 20">
+                            <span class="lvl-gem">🧿</span><span class="lvl-num">bis 20</span>
+                            <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+                        </button>
+                        <button class="lvl-btn lvl-2" onclick="initGame(100, '🔮')" aria-label="Bis 100">
+                            <span class="lvl-gem">🔮</span><span class="lvl-num">bis 100</span>
+                            <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+                        </button>
+                        <button class="lvl-btn lvl-3" onclick="initGame(1000, '💎')" aria-label="Bis 1000">
+                            <span class="lvl-gem">💎</span><span class="lvl-num">bis 1000</span>
+                            <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+                        </button>
+                    </div>
                 </div>
-                <span class="instruction-label">Lösungs-Modus</span>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button id="modeFree" class="step-btn active" onclick="setMode('free')">Gratis</button>
-                    <button id="modePro" class="step-btn" onclick="setMode('pro')">💎 Kostet 1</button>
+
+                <div class="collection">
+                    <span class="label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5a4320" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h14l-1.5 11h-11L5 9zM8 9a4 4 0 0 1 8 0"/></svg>
+                        Schätze
+                    </span>
+                    <div class="shelf" id="artifacts"></div>
                 </div>
-                <span class="instruction-label">Rechenarten</span>
-                <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; background: #edf2f7; padding: 8px; border-radius: 8px; color: #2d3748;">
-                    <label style="cursor:pointer"><input type="checkbox" id="c_add" checked> +</label>
-                    <label style="cursor:pointer"><input type="checkbox" id="c_sub" checked> -</label>
-                    <label style="cursor:pointer"><input type="checkbox" id="c_mul"> ×</label>
-                    <label style="cursor:pointer"><input type="checkbox" id="c_div"> ÷</label>
-                </div>
-                <button class="start-btn btn-level-1 lvl-btn" onclick="initGame(20, '🧿')">Bis 20</button>
-                <button class="start-btn btn-level-2 lvl-btn" onclick="initGame(100, '🔮')">Bis 100</button>
-                <button class="start-btn btn-level-3 lvl-btn" onclick="initGame(1000, '💎')">Bis 1000</button>
             </div>
-            <span class="instruction-label">Deine Schätze</span>
-            <div class="collection-shelf" id="artifacts"></div>
-            <button onclick="confirmReset()" style="background:#e74c3c; color:white; border:none; padding:8px; border-radius:8px; width:100%; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:5px;">SPIELSTAND LÖSCHEN</button>
         </div>
+      </div>
     </div>
 
+    <div id="revealOverlay" class="reveal-overlay">
+        <h2>GEFUNDEN!</h2>
+        <div id="revealedItem" class="revealed-artifact"></div>
+        <p id="revealedName" style="margin-top: 16px; font-weight: 900; font-size: 22px;"></p>
+        <button class="reveal-btn" onclick="closeReveal()">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h14l-1.5 11h-11L5 9zM8 9a4 4 0 0 1 8 0"/></svg>
+            In die Kiste
+        </button>
+    </div>
+
+    <div id="fxLayer"></div>
+
     <script>
+        /* ================= Spielzustand (unverändert) ================= */
         let targetValue = 0, currentTotal = 0, activeOp = null, historyText = "", currentGem = "";
         let maxSteps = 3, solutionMode = 'free', currentSolutionPath = "", gameActive = false;
-        
-        let gemPool = JSON.parse(localStorage.getItem('gemPool')) || [];
-        let ownedArtifacts = JSON.parse(localStorage.getItem('ownedArtifacts')) || [];
-        let boughtItems = JSON.parse(localStorage.getItem('boughtItems')) || [];
+        let solutionTimer = null, doorTimer = null;
+
+        function loadList(key) {
+            try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; }
+        }
+        let gemPool = loadList('gemPool');
+        let ownedArtifacts = loadList('ownedArtifacts');
+        let boughtItems = loadList('boughtItems');
 
         const artifactsList = ["👑", "🗡️", "🏆", "🛡️", "🔱", "🐲", "🌟", "🦄", "🏰", "🌋", "📜", "🗝️", "⌛", "🏺", "💍", "🪙", "🧭", "🎭", "🏎️", "🚀"];
         const shopItems = [
@@ -201,10 +462,17 @@
             {id: 10, price: 20, icon: '🧰', name: 'Werkzeugkiste'}
         ];
 
+        const ICON_DIAMOND = '<svg width="15" height="15" viewBox="0 0 24 24" fill="#3498db" stroke="#1f6fa8" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12l4 6-10 11L2 10z"/></svg>';
+        const ICON_CHECK = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3a2f00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+        const ICON_CART = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 11h10L20 7H6.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>';
+        const ICON_LOCK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+        const ICON_SHOP = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d8dee9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 11h10L20 7H6.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>';
+        const ICON_BULB_GOLD = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#f1c40f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>';
+
         function setSteps(val, btn) {
             if (gameActive && solutionMode === 'pro') return;
             maxSteps = val;
-            document.querySelectorAll('.step-btn').forEach(b => { if(!b.id.startsWith('mode')) b.classList.remove('active')});
+            document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }
 
@@ -212,19 +480,14 @@
             solutionMode = mode;
             document.getElementById('modeFree').classList.toggle('active', mode === 'free');
             document.getElementById('modePro').classList.toggle('active', mode === 'pro');
+            document.getElementById('costBadge').style.display = (mode === 'pro') ? 'flex' : 'none';
             updateStartButtons();
         }
 
         function updateStartButtons() {
             const btns = document.querySelectorAll('.lvl-btn');
             btns.forEach(b => {
-                if (gameActive && solutionMode === 'pro') {
-                    b.disabled = true;
-                    if (!b.innerText.includes('🔒')) b.innerText = "🔒 " + b.innerText;
-                } else {
-                    b.disabled = false;
-                    b.innerText = b.innerText.replace('🔒 ', '');
-                }
+                b.disabled = !!(gameActive && solutionMode === 'pro');
             });
         }
 
@@ -278,10 +541,13 @@
             gameActive = true;
             if (solutionMode === 'pro') document.getElementById('settingsPanel').classList.add('panel-locked');
             updateStartButtons();
+            clearTimeout(doorTimer);
             document.getElementById('door').classList.remove('open');
-            document.getElementById('treasure').style.display = 'none';
+            const tr = document.getElementById('treasure');
+            tr.style.display = 'none'; tr.classList.remove('pop');
+            setPeek(false);
             resetCalc();
-            
+
             const allowedOps = [];
             if(document.getElementById('c_add').checked) allowedOps.push('+');
             if(document.getElementById('c_sub').checked) allowedOps.push('-');
@@ -291,11 +557,11 @@
                 gameActive = false; document.getElementById('settingsPanel').classList.remove('panel-locked');
                 updateStartButtons(); return alert("Wähle eine Rechenart!");
             }
-            
+
             let path = createLogicPath(max, maxSteps, allowedOps);
             targetValue = path.result;
             document.getElementById('targetDisplay').innerText = targetValue;
-            
+
             let pool = [];
             path.numbers.forEach(n => { if (!pool.includes(n)) pool.push(n); });
 
@@ -306,26 +572,28 @@
                 safety++;
             }
             renderUI(pool.sort(() => Math.random() - 0.5), allowedOps);
+            renderChain();
         }
 
         function showSolution() {
-            const eqDisplay = document.getElementById('equation');
             if (!gameActive) return;
             if (solutionMode === 'pro') {
                 if (gemPool.length > 0) {
                     gemPool.pop(); saveData(); updateWalletUI(); renderShop();
                     document.getElementById('settingsPanel').classList.remove('panel-locked');
                 } else {
-                    const oldText = eqDisplay.innerText;
-                    eqDisplay.innerText = "Zu wenig Edelsteine! 💎"; eqDisplay.style.color = "#e74c3c";
-                    setTimeout(() => { eqDisplay.innerText = oldText; eqDisplay.style.color = "#edf2f7"; }, 2000);
+                    renderChain({ bad: true });
+                    scheduleChainRestore(2000);
                     return;
                 }
             }
-            const oldT = eqDisplay.innerText;
-            eqDisplay.innerText = "Lösung: " + currentSolutionPath;
-            eqDisplay.style.color = "var(--gold)";
-            setTimeout(() => { eqDisplay.innerText = historyText || "Knack den Code!"; eqDisplay.style.color = "#edf2f7"; }, 4000);
+            renderChain({ solution: currentSolutionPath });
+            scheduleChainRestore(4000);
+        }
+
+        function scheduleChainRestore(ms) {
+            clearTimeout(solutionTimer);
+            solutionTimer = setTimeout(() => { solutionTimer = null; renderChain(); }, ms);
         }
 
         function renderUI(pool, ops) {
@@ -334,6 +602,7 @@
                 const b = document.createElement('button');
                 b.className = 'num-btn'; b.innerText = n;
                 b.onclick = () => {
+                    if(!gameActive) return;
                     if(currentTotal === 0) { currentTotal = n; historyText = n.toString(); }
                     else if(activeOp) {
                         if(activeOp === '+') currentTotal += n;
@@ -350,42 +619,193 @@
             const or = document.getElementById('opRow'); or.innerHTML = '';
             ops.forEach(op => {
                 const b = document.createElement('button');
-                b.className = 'op-btn'; b.innerText = op.replace('*','×').replace('/','÷');
-                b.onclick = () => { if(currentTotal !== 0) activeOp = op; updateDisplay(); };
+                b.className = 'op-btn'; b.dataset.op = op;
+                b.innerText = op.replace('*','×').replace('/','÷').replace('-','−');
+                b.setAttribute('aria-label', {'+':'Plus','-':'Minus','*':'Mal','/':'Geteilt'}[op]);
+                b.onclick = () => { if(!gameActive) return; if(currentTotal !== 0) activeOp = op; updateDisplay(); };
                 or.appendChild(b);
             });
         }
 
+        // Platzhalter vor dem ersten Spiel, damit der Tresor nicht leer wirkt
+        function renderIdle() {
+            const g = document.getElementById('grid'); g.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const b = document.createElement('button');
+                b.className = 'num-btn idle'; b.disabled = true; b.setAttribute('aria-hidden', 'true');
+                g.appendChild(b);
+            }
+            const or = document.getElementById('opRow'); or.innerHTML = '';
+            ['+', '−'].forEach(sym => {
+                const b = document.createElement('button');
+                b.className = 'op-btn idle'; b.disabled = true; b.innerText = sym; b.setAttribute('aria-hidden', 'true');
+                or.appendChild(b);
+            });
+        }
+
+        /* ================= Rechenweg als Kacheln ================= */
+        function isOpToken(t) { return /^[+\-−×÷=]$/.test(t); }
+        function opSym(t) { return t === '-' ? '−' : t; }
+
+        function renderChain(opts) {
+            opts = opts || {};
+            const el = document.getElementById('chain');
+            el.className = 'chain';
+            el.style.transform = '';
+            let html = '';
+            if (opts.bad) {
+                html = '<span class="pill-bad"><span>💎</span><span>zu wenig</span></span>';
+            } else if (opts.solution) {
+                el.classList.add('solution');
+                html = ICON_BULB_GOLD + opts.solution.split(' ').map(t =>
+                    isOpToken(t) ? `<span class="tile-op">${opSym(t)}</span>` : `<span class="tile">${t}</span>`).join('');
+            } else if (targetValue === 0 && !historyText) {
+                html = '<span class="idle-hint">👉</span>';
+            } else {
+                const toks = historyText ? historyText.split(' ') : [];
+                if (activeOp) toks.push(activeOp.replace('*','×').replace('/','÷'));
+                html = toks.map(t => isOpToken(t) ? `<span class="tile-op">${opSym(t)}</span>` : `<span class="tile">${t}</span>`).join('');
+                if (!toks.length || isOpToken(toks[toks.length - 1])) html += '<span class="tile-slot"></span>';
+            }
+            el.innerHTML = html;
+            fitChain();
+        }
+
+        function fitChain() {
+            const el = document.getElementById('chain');
+            const avail = el.parentElement.clientWidth;
+            const need = el.offsetWidth;
+            if (need > avail && need > 0) el.style.transform = `scale(${avail / need})`;
+        }
+
+        /* ================= Anzeige & Gewinn ================= */
         function updateDisplay() {
-            document.getElementById('equation').innerText = historyText + (activeOp ? ` ${activeOp.replace('*','×').replace('/','÷')}` : "");
-            if(Math.abs(currentTotal - targetValue) < 0.001 && historyText.includes(' ')) {
-                gameActive = false; 
+            renderChain();
+            updatePeekValue();
+            document.querySelectorAll('#opRow .op-btn').forEach(b => b.classList.toggle('active', b.dataset.op === activeOp));
+            if(gameActive && Math.abs(currentTotal - targetValue) < 0.001 && historyText.includes(' ')) {
+                gameActive = false;
                 document.getElementById('settingsPanel').classList.remove('panel-locked');
                 updateStartButtons();
-                document.getElementById('door').classList.add('open');
+                setPeek(false);
+                // Stein liegt schon im Tresor, bevor die Tür aufgeht
                 const t = document.getElementById('treasure');
-                t.innerText = currentGem; t.style.display = 'block';
-                setTimeout(flyGem, 800);
+                t.innerText = currentGem; t.style.display = 'block'; t.style.visibility = 'visible';
+                t.classList.remove('pop');
+                document.getElementById('door').classList.add('open');
+                const gem = currentGem;
+                setTimeout(() => {
+                    const r = t.getBoundingClientRect();
+                    if (r.width) burst(r.left + r.width / 2, r.top + r.height / 2, 16);
+                }, 600);
+                setTimeout(() => flyGem(gem), 2800);
+                // Tür schließt sich nach ca. 5 Sekunden von selbst
+                clearTimeout(doorTimer);
+                doorTimer = setTimeout(() => { document.getElementById('door').classList.remove('open'); }, 5000);
             }
         }
 
-        function flyGem() {
-            gemPool.push(currentGem);
+        function finishGem(gem) {
+            gemPool.push(gem);
             saveData(); updateWalletUI(); renderShop();
-            document.getElementById('treasure').style.display = 'none';
+            const t = document.getElementById('treasure');
+            t.style.display = 'none'; t.style.visibility = 'visible';
+        }
+
+        function flyGem(gem) {
+            const t = document.getElementById('treasure');
+            const bar = document.getElementById('gems');
+            const from = t.getBoundingClientRect();
+            if (!from.width || t.style.display === 'none') { finishGem(gem); return; }
+            const to = bar.getBoundingClientRect();
+            const el = document.createElement('div');
+            el.className = 'flying';
+            el.textContent = gem;
+            el.style.left = from.left + 'px'; el.style.top = from.top + 'px';
+            el.style.width = from.width + 'px'; el.style.height = from.height + 'px';
+            el.style.fontSize = getComputedStyle(t).fontSize;
+            if (!el.animate) { finishGem(gem); return; }
+            document.body.appendChild(el);
+            t.style.visibility = 'hidden';
+            const s = stageScale;
+            const tx = to.left + Math.min(to.width - 24 * s, (28 + gemPool.length * 38) * s);
+            const ty = to.top + to.height / 2;
+            const dx = tx - (from.left + from.width / 2);
+            const dy = ty - (from.top + from.height / 2);
+            const k = Math.max(0.12, (30 * s) / from.height);
+            const a = el.animate(
+                [{ transform: 'translate(0,0) scale(1)' }, { transform: `translate(${dx}px, ${dy}px) scale(${k})` }],
+                { duration: 700, easing: 'ease-in', fill: 'forwards' }
+            );
+            a.onfinish = () => { el.remove(); finishGem(gem); };
+        }
+
+        // Einmaliges Glitzern, kein Dauer-Effekt
+        function burst(cx, cy, n) {
+            const layer = document.getElementById('fxLayer');
+            const s = stageScale;
+            const icons = ['✨', '⭐', '🌟', '✨'];
+            for (let i = 0; i < n; i++) {
+                const el = document.createElement('span');
+                el.className = 'spark';
+                el.textContent = icons[i % icons.length];
+                el.style.left = cx + 'px'; el.style.top = cy + 'px';
+                el.style.fontSize = ((18 + Math.random() * 18) * s) + 'px';
+                layer.appendChild(el);
+                if (!el.animate) { el.remove(); continue; }
+                const ang = Math.random() * Math.PI * 2;
+                const dist = (90 + Math.random() * 170) * s;
+                const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
+                const a = el.animate([
+                    { transform: 'translate(0,0) scale(0.3)', opacity: 1 },
+                    { transform: `translate(${dx}px, ${dy}px) scale(1.1)`, opacity: 1, offset: 0.6 },
+                    { transform: `translate(${dx * 1.1}px, ${dy * 1.1 + 20 * s}px) scale(0.4)`, opacity: 0 }
+                ], { duration: 900 + Math.random() * 500, easing: 'ease-out', fill: 'forwards' });
+                a.onfinish = () => el.remove();
+            }
         }
 
         function resetCalc() { currentTotal = 0; activeOp = null; historyText = ""; updateDisplay(); }
 
+        /* ================= Spicker (Zwischenstand) ================= */
+        function fmtNum(n) {
+            return String(parseFloat(n.toFixed(2))).replace('.', ',').replace('-', '−');
+        }
+        function updatePeekValue() {
+            document.getElementById('sumDisplay').textContent = historyText ? fmtNum(currentTotal) : '?';
+        }
+        function setPeek(on) {
+            document.getElementById('screen').classList.toggle('peek', on);
+            document.getElementById('eyeBtn').classList.toggle('held', on);
+            if (on) updatePeekValue();
+        }
+        (function initEye() {
+            const eye = document.getElementById('eyeBtn');
+            eye.addEventListener('pointerdown', e => { e.preventDefault(); setPeek(true); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => eye.addEventListener(ev, () => setPeek(false)));
+            eye.addEventListener('contextmenu', e => e.preventDefault());
+            eye.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); setPeek(true); } });
+            eye.addEventListener('keyup', () => setPeek(false));
+            eye.addEventListener('blur', () => setPeek(false));
+            document.addEventListener('visibilitychange', () => setPeek(false));
+        })();
+
+        /* ================= Shop, Beutel, Regal ================= */
         function renderShop() {
-            const shop = document.getElementById('shop'); shop.innerHTML = '<span class="instruction-label">Shop</span>';
+            const shop = document.getElementById('shop');
+            shop.innerHTML = `<div class="panel-title">${ICON_SHOP} Shop</div>`;
             shopItems.forEach(item => {
                 const isBought = boughtItems.includes(item.id);
                 const canAfford = gemPool.length >= item.price;
+                const state = isBought ? 'bought' : (canAfford ? 'can' : 'locked');
+                let action;
+                if (isBought) action = `<span class="si-done" aria-label="Gekauft">${ICON_CHECK}</span>`;
+                else if (canAfford) action = `<button class="buy-btn" onclick="buyItem(${item.id})">${ICON_CART} Kauf</button>`;
+                else action = `<span class="si-lock" aria-label="Zu teuer">${ICON_LOCK}</span>`;
                 const div = document.createElement('div');
-                div.className = `shop-item ${isBought ? 'bought' : ''}`;
-                div.innerHTML = `<span> ${item.icon} ${item.price}    🧿🔮💎</span>
-                <button class="buy-btn" ${(!canAfford || isBought) ? 'disabled' : ''} onclick="buyItem(${item.id})">${isBought ? '✓' : 'Kauf'}</button>`;
+                div.className = `shop-item ${state}`;
+                div.innerHTML = `<span class="si-icon">${item.icon}</span>
+                    <div class="si-info"><span class="si-name">${item.name}</span><span class="si-price">${item.price}${ICON_DIAMOND}</span></div>${action}`;
                 shop.appendChild(div);
             });
         }
@@ -399,26 +819,70 @@
             document.getElementById('revealedName').innerText = item.name;
             document.getElementById('revealOverlay').style.display = 'flex';
             window.lastArt = art;
+            setTimeout(() => {
+                const r = document.getElementById('revealedItem').getBoundingClientRect();
+                if (r.width) burst(r.left + r.width / 2, r.top + r.height / 2, 18);
+            }, 350);
         }
 
-        function closeReveal() { 
-            if(window.lastArt) ownedArtifacts.push(window.lastArt); 
-            saveData(); document.getElementById('revealOverlay').style.display = 'none'; renderArtifacts(); 
+        function closeReveal() {
+            if(window.lastArt) ownedArtifacts.push(window.lastArt);
+            window.lastArt = null;
+            saveData(); document.getElementById('revealOverlay').style.display = 'none'; renderArtifacts();
         }
 
-        function renderArtifacts() { document.getElementById('artifacts').innerHTML = ownedArtifacts.map(a => `<span style="font-size:2rem">${a}</span>`).join(''); }
-        function updateWalletUI() { document.getElementById('gems').innerText = gemPool.length ? gemPool.join(' ') : '👝 Leer'; }
-        function saveData() { localStorage.setItem('gemPool', JSON.stringify(gemPool)); localStorage.setItem('ownedArtifacts', JSON.stringify(ownedArtifacts)); localStorage.setItem('boughtItems', JSON.stringify(boughtItems)); }
-        
-        function applyRandomTheme() { 
-            const colors = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6', '#f1c40f', '#e74c3c', '#1abc9c']; 
+        function renderArtifacts() {
+            // Ein Platz pro Shop-Item: so sieht man, wie viele Schätze noch fehlen
+            const total = Math.max(shopItems.length, ownedArtifacts.length);
+            let html = '';
+            for (let i = 0; i < total; i++) {
+                const a = ownedArtifacts[i];
+                html += a ? `<div class="slot found"><span>${a}</span></div>` : `<div class="slot"><span class="q">?</span></div>`;
+            }
+            document.getElementById('artifacts').innerHTML = html;
+        }
+
+        function updateWalletUI() {
+            document.getElementById('gems').innerHTML = gemPool.length
+                ? gemPool.map(g => `<span>${g}</span>`).join('')
+                : '<span class="empty">👝 Leer</span>';
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('gemPool', JSON.stringify(gemPool));
+                localStorage.setItem('ownedArtifacts', JSON.stringify(ownedArtifacts));
+                localStorage.setItem('boughtItems', JSON.stringify(boughtItems));
+            } catch (e) {}
+        }
+
+        function applyRandomTheme() {
+            const colors = ['#2b7bbf', '#c4610f', '#237a4b', '#7b4aa8', '#a06c00', '#c0392b', '#157f73'];
             const newColor = colors[Math.floor(Math.random() * colors.length)];
-            document.documentElement.style.setProperty('--main-color', newColor); 
+            document.documentElement.style.setProperty('--main-color', newColor);
         }
 
         function confirmReset() { if(confirm("Spielstand wirklich löschen?")) { localStorage.clear(); location.reload(); } }
 
-        renderShop(); renderArtifacts(); updateWalletUI();
+        /* ================= Skalierung auf den Bildschirm ================= */
+        const STAGE_W = 1240, STAGE_H = 860;
+        let stageScale = 1;
+        function fitStage() {
+            const box = document.getElementById('fitbox').getBoundingClientRect();
+            if (!box.width || !box.height) return;
+            stageScale = Math.min(box.width / STAGE_W, box.height / STAGE_H);
+            const dx = (box.width - STAGE_W * stageScale) / 2;
+            const dy = (box.height - STAGE_H * stageScale) / 2;
+            document.getElementById('stage').style.transform = `translate(${dx}px, ${dy}px) scale(${stageScale})`;
+        }
+        window.addEventListener('resize', fitStage);
+        window.addEventListener('orientationchange', () => setTimeout(fitStage, 200));
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', fitStage);
+
+        /* ================= Start ================= */
+        fitStage();
+        setTimeout(fitStage, 300);
+        renderShop(); renderArtifacts(); updateWalletUI(); renderIdle(); renderChain();
     </script>
 </body>
 </html>
